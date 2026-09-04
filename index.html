@@ -336,6 +336,8 @@ select.fi{cursor:pointer;appearance:none;
 .success{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:40px;box-shadow:var(--shadow-sm)}
 .success h2{margin:12px 0 14px}
 .success p{font-size:16px;color:var(--muted)}
+.again{margin-top:28px;padding-top:22px;border-top:1px solid var(--line)}
+.again p{font-size:14px;margin-bottom:12px}
 .code-box{display:inline-flex;align-items:center;gap:14px;margin:24px 0;background:var(--sky-50);
   border:1px solid var(--sky-100);border-radius:10px;padding:14px 20px}
 .code-box b{font-family:var(--font-mono);font-size:20px;letter-spacing:.05em;color:var(--sky-700)}
@@ -883,6 +885,10 @@ select.fi{cursor:pointer;appearance:none;
           <a href="#brief" class="btn btn-primary" data-route data-i18n="reg.ok.b1">Descargar el brief</a>
           <a href="#pasaporte" class="btn btn-outline" data-route data-i18n="reg.ok.b2">Generar mi pasaporte</a>
         </div>
+        <div class="again">
+          <p data-i18n="reg.ok.againB">¿Compartes este dispositivo o inscribes a tu equipo? Vuelve al formulario. Tu inscripción ya quedó guardada.</p>
+          <button type="button" class="btn btn-outline btn-sm" id="s-again" data-i18n="reg.ok.again">Inscribir a otra persona</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1147,6 +1153,9 @@ es:{
 'reg.ok.lineUni':'Registramos a {uni}. El siguiente paso son 20 minutos con el equipo para fijar la fecha de lanzamiento y activar el código de la institución.',
 'reg.ok.code':'Código de participante','reg.ok.next':'Activa tu mes de Limly Pro',
 'reg.ok.b1':'Descargar el brief','reg.ok.b2':'Generar mi pasaporte',
+'reg.ok.again':'Inscribir a otra persona',
+'reg.ok.againB':'¿Compartes este dispositivo o inscribes a tu equipo? Vuelve al formulario. Tu inscripción ya quedó guardada.',
+'reg.toastAgain':'Formulario en blanco','reg.toastAgainB':'La inscripción anterior sigue guardada.',
 'reg.toastOk':'Inscripción registrada','reg.toastOkB':'Guarda tu código de participante.',
 'reg.toastErr':'Falta completar algún dato','reg.toastErrB':'Revisa los campos marcados.',
 'pass.title':'Tu pasaporte digital',
@@ -1302,6 +1311,9 @@ I18N.en = {
 'reg.ok.lineUni':'{uni} is registered. Next step is 20 minutes with the team to set the launch date and activate the institution code.',
 'reg.ok.code':'Participant code','reg.ok.next':'Activate your month of Limly Pro',
 'reg.ok.b1':'Download the brief','reg.ok.b2':'Generate my passport',
+'reg.ok.again':'Sign up someone else',
+'reg.ok.againB':'Sharing this device, or signing up your team? Go back to the form. Your sign-up is already saved.',
+'reg.toastAgain':'Blank form','reg.toastAgainB':'The previous sign-up is still saved.',
 'reg.toastOk':'Sign-up registered','reg.toastOkB':'Keep your participant code.',
 'reg.toastErr':'Some details are missing','reg.toastErrB':'Check the highlighted fields.',
 'pass.title':'Your digital passport',
@@ -1454,6 +1466,9 @@ I18N.pt = {
 'reg.ok.lineUni':'Registramos {uni}. O próximo passo são 20 minutos com a equipe para definir a data de lançamento e ativar o código da instituição.',
 'reg.ok.code':'Código de participante','reg.ok.next':'Ative seu mês de Limly Pro',
 'reg.ok.b1':'Baixar o brief','reg.ok.b2':'Gerar meu passaporte',
+'reg.ok.again':'Inscrever outra pessoa',
+'reg.ok.againB':'Compartilha este dispositivo ou inscreve sua equipe? Volte ao formulário. Sua inscrição já foi salva.',
+'reg.toastAgain':'Formulário em branco','reg.toastAgainB':'A inscrição anterior continua salva.',
 'reg.toastOk':'Inscrição registrada','reg.toastOkB':'Guarde seu código de participante.',
 'reg.toastErr':'Faltam dados','reg.toastErrB':'Confira os campos marcados.',
 'pass.title':'Seu passaporte digital',
@@ -2315,6 +2330,36 @@ async function submit(){
   toast(t('reg.toastOk'), t('reg.toastOkB'));
 }
 
+/* Vuelve al formulario dejando intacto el roster: un mismo
+   dispositivo (un stand, un laboratorio, un móvil que se pasa de
+   mano en mano) tiene que poder inscribir a varias personas. */
+function again(){
+  const keep = Store.get().roster || [];
+  Store.set({ name:'', email:'', uni:'', country:'PE', city:'', career:'', role:'',
+              team:'', teamStatus:'', type:'estudiante', code:'', registered:false,
+              phone:'', whatsapp:'', dialCode:'', countryName:'', at:'', roster:keep });
+
+  ['r-name','r-mail','r-uni','r-city','r-career','r-role','r-team','r-phone']
+    .forEach(id => { const el = document.getElementById(id);
+                     if (el){ el.value = ''; el.classList.remove('invalid'); } });
+  ['e-name','e-mail','e-uni','e-phone','e-terms']
+    .forEach(id => { const el = document.getElementById(id);
+                     if (el) el.classList.remove('show'); });
+  document.querySelectorAll('input[name="rteam"]').forEach(r => r.checked = false);
+  document.getElementById('rt-est').checked = true;
+  document.getElementById('r-terms').checked = false;
+  const co = document.getElementById('r-country'); if (co) co.value = 'PE';
+  const dl = document.getElementById('r-dial');
+  if (dl){ dl.value = 'PE'; delete dl.dataset.touched; }
+
+  syncType();
+  document.getElementById('reg-success').style.display = 'none';
+  document.getElementById('reg-form-wrap').style.display = 'block';
+  window.scrollTo({ top:0, behavior:'smooth' });
+  document.getElementById('r-name').focus({ preventScroll:true });
+  toast(t('reg.toastAgain'), t('reg.toastAgainB'));
+}
+
 function hydrate(){
   const d = Store.get();
   if (d.registered) showSuccess(d);
@@ -2324,6 +2369,7 @@ function hydrate(){
 function init(){
   document.querySelectorAll('input[name="rtipo"]').forEach(r => r.addEventListener('change', syncType));
   document.getElementById('r-submit').addEventListener('click', submit);
+  document.getElementById('s-again').addEventListener('click', again);
   ['r-name','r-mail','r-uni'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('input', () => { if (el.classList.contains('invalid')) validate(); });
@@ -2343,7 +2389,7 @@ function init(){
   });
   syncType();
 }
-return { init, hydrate, syncType };
+return { init, hydrate, syncType, again };
 })();
 </script>
 <script>
