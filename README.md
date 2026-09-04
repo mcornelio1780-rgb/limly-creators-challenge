@@ -81,7 +81,8 @@ cuando lo pegas en los grupos de WhatsApp de las universidades.
 ### 5. Arregla la vista previa del enlace
 
 En `index.html`, las etiquetas `og:url`, `og:image` y `twitter:image` apuntan
-a `https://reto.limly.io/`. **Cámbialas por tu dominio real.** Tienen que ser
+a `https://limly-creators-reto.vercel.app/`, el dominio actual en producción.
+**Si añades un dominio propio, cámbialas por él.** Tienen que ser
 URLs absolutas: si dejas una ruta relativa, WhatsApp no muestra la imagen.
 
 Después de cambiarlo, prueba el enlace en
