@@ -1033,7 +1033,7 @@ const CONFIG = {
      navegador de cada persona y no llegan a ningún sitio.
      Pon aquí la URL de tu Google Apps Script, Airtable, Tally,
      Supabase o el endpoint que uses, y empiezan a llegar. */
-  endpoint: 'https://script.google.com/macros/s/AKfycbyP_5JvqfYzQbJRMBwQS0Fpeltss711TcClOK3bIGv3c2tIBbOSHq6oaFqzpTlm6Zmh/exec'
+  endpoint: 'https://script.google.com/macros/s/AKfycbxfuCMwN0wD8eNX7EzMJovm8IH039rIrxBIi5bsMiLHdliTmyaiMdWJJsUV1A6yFD1U/exec'
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -2276,11 +2276,13 @@ function renderSteps(){
 async function send(record){
   if (!CONFIG.endpoint) return { ok:false, reason:'no-endpoint' };
   try {
-    await fetch(CONFIG.endpoint, {
-      method:'POST', mode:'no-cors',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify(record)
-    });
+    /* Se envía como formulario (application/x-www-form-urlencoded).
+       Es el único formato que Apps Script recibe siempre: llega en
+       e.parameter.payload. Con JSON crudo, e.postData a veces viene
+       vacío y la inscripción se pierde sin avisar. */
+    const form = new URLSearchParams();
+    form.append('payload', JSON.stringify(record));
+    await fetch(CONFIG.endpoint, { method:'POST', mode:'no-cors', body: form });
     return { ok:true };
   } catch(e){ return { ok:false, reason:'network' }; }
 }

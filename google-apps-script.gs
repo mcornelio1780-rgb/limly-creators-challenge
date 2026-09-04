@@ -1,4 +1,13 @@
 /**
+ * ⚠️ ESTA COPIA ESTÁ DESACTUALIZADA — NO LA PEGUES EN APPS SCRIPT.
+ *
+ * Lee la inscripción de e.postData.contents, pero la web ya la manda
+ * como formulario y llega en e.parameter.payload. Si pegas este
+ * archivo en Google, las inscripciones dejan de guardarse.
+ * La versión buena es la que está publicada en Apps Script.
+ *
+ * ─────────────────────────────────────────────────────────────
+ *
  * LIMLY CREATORS CHALLENGE — recepción de inscripciones
  *
  * Qué hace: recibe cada inscripción de la web y la escribe como
