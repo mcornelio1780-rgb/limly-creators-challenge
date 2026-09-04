@@ -22,27 +22,16 @@ Español, inglés y portugués, con conmutador en la barra superior.
 
 ## Puesta en marcha, en orden
 
-### 1. Conecta el buzón de inscripciones (hazlo primero)
+### 1. El buzón de inscripciones ya está conectado
 
-Sin esto la web funciona, pero **nadie que se inscriba llega a ti**: los datos
-se quedan en el navegador de cada persona.
+`endpoint` en el bloque `CONFIG` ya apunta al Apps Script publicado. Las
+inscripciones caen en la hoja de cálculo asociada.
 
-Abre `google-apps-script.gs` y sigue las instrucciones del principio del
-archivo. Son unos diez minutos. Al terminar tendrás una URL que acaba en
-`/exec`.
+Si algún día tienes que volver a publicarlo (por ejemplo tras cambiar el
+código del script), acuérdate de generar una **nueva versión** al implementar,
+no solo guardar. Y si cambia la URL, actualízala en `CONFIG.endpoint`.
 
-Luego, en `index.html`, busca `endpoint` (está dentro del bloque `CONFIG`, en
-el primer `<script>`) y cambia:
-
-```js
-endpoint: null
-```
-
-por:
-
-```js
-endpoint: 'https://script.google.com/macros/s/TU_URL_AQUI/exec'
-```
+Las instrucciones completas están en `google-apps-script.gs`.
 
 **Comprueba que funciona antes de anunciar nada:** inscríbete tú mismo con
 datos de prueba y mira que aparezca la fila en la hoja. Si no aparece, casi
@@ -78,12 +67,12 @@ dominio.
 Un subdominio propio convierte bastante mejor que una URL de vercel.app
 cuando lo pegas en los grupos de WhatsApp de las universidades.
 
-### 5. Arregla la vista previa del enlace
+### 5. La vista previa del enlace
 
 En `index.html`, las etiquetas `og:url`, `og:image` y `twitter:image` apuntan
 a `https://limly-creators-reto.vercel.app/`, el dominio actual en producción.
-**Si añades un dominio propio, cámbialas por él.** Tienen que ser
-URLs absolutas: si dejas una ruta relativa, WhatsApp no muestra la imagen.
+**Si añades un dominio propio, cámbialas por él.** Tienen que ser URLs
+absolutas: si dejas una ruta relativa, WhatsApp no muestra la imagen.
 
 Después de cambiarlo, prueba el enlace en
 [developers.facebook.com/tools/debug](https://developers.facebook.com/tools/debug/)
