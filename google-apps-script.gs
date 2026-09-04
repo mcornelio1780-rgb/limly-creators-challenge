@@ -1,69 +1,44 @@
 /**
- * ⚠️ ESTA COPIA ESTÁ DESACTUALIZADA — NO LA PEGUES EN APPS SCRIPT.
- *
- * Lee la inscripción de e.postData.contents, pero la web ya la manda
- * como formulario y llega en e.parameter.payload. Si pegas este
- * archivo en Google, las inscripciones dejan de guardarse.
- * La versión buena es la que está publicada en Apps Script.
- *
- * ─────────────────────────────────────────────────────────────
- *
  * LIMLY CREATORS CHALLENGE — recepción de inscripciones
  *
- * Qué hace: recibe cada inscripción de la web y la escribe como
- * una fila en tu Google Sheet. Nada más. No guarda nada aparte,
- * no depende de ningún servicio de pago.
+ * Escribe cada inscripción como una fila en la pestaña "inscripciones".
+ * Si algo falla, deja el rastro en la pestaña "errores" en vez de perderlo.
  *
  * ─────────────────────────────────────────────────────────────
- * CÓMO INSTALARLO (una sola vez, ~10 minutos)
+ * SI YA TENÍAS LA VERSIÓN ANTERIOR INSTALADA
  * ─────────────────────────────────────────────────────────────
- * 1. Crea una hoja de cálculo nueva en sheets.new
- *    Llámala, por ejemplo, "Limly Creators Challenge — Inscripciones".
+ * 1. Abre tu hoja → Extensiones → Apps Script.
+ * 2. Borra TODO el código que haya y pega este archivo completo.
+ * 3. Guarda (Ctrl+S).
+ * 4. Implementar → Gestionar implementaciones → el lápiz (editar) →
+ *    Versión: "Nueva versión" → Implementar.
  *
- * 2. En esa hoja: menú Extensiones → Apps Script.
+ *    ⚠️ Este paso 4 es obligatorio. Si solo guardas, la URL sigue
+ *    entregando el código viejo y nada cambia.
  *
- * 3. Borra todo lo que haya en el editor y pega ESTE archivo completo.
- *
- * 4. Guarda (icono del disquete).
- *
- * 5. Botón azul "Implementar" (arriba a la derecha) →
- *    "Nueva implementación" → engranaje → tipo: "Aplicación web".
- *      · Descripción:        Inscripciones reto
- *      · Ejecutar como:      Yo (tu cuenta)
- *      · Quién tiene acceso: CUALQUIER USUARIO   ← importante
- *    → Implementar.
- *
- * 6. Google te pedirá autorizar. Acepta. Si sale la pantalla
- *    "Google no ha verificado esta aplicación", pulsa
- *    "Configuración avanzada" → "Ir a (nombre del proyecto)".
- *    Es tu propio script: es seguro.
- *
- * 7. Copia la "URL de la aplicación web". Termina en /exec
- *    Se ve así:
- *    https://script.google.com/macros/s/AKfycb..................../exec
- *
- * 8. Abre el HTML del reto, busca CONFIG (está en la primera
- *    línea del primer <script>) y cambia:
- *
- *        endpoint: null
- *
- *    por:
- *
- *        endpoint: 'https://script.google.com/macros/s/TU_URL/exec'
- *
- *    Guarda. Ya está: cada inscripción cae en tu hoja.
+ * 5. La URL NO cambia. No hay que tocar la web por este lado.
  *
  * ─────────────────────────────────────────────────────────────
- * SI CAMBIAS ESTE ARCHIVO DESPUÉS
+ * INSTALACIÓN DESDE CERO
  * ─────────────────────────────────────────────────────────────
- * Tienes que volver a "Implementar" → "Gestionar implementaciones"
- * → editar (lápiz) → Versión: "Nueva versión" → Implementar.
- * Si solo guardas, la URL sigue sirviendo la versión antigua.
+ * 1. Crea una hoja en sheets.new y ponle nombre.
+ * 2. Extensiones → Apps Script. Borra lo que haya y pega esto.
+ * 3. Guardar → Implementar → Nueva implementación → engranaje →
+ *    "Aplicación web".
+ *      · Ejecutar como:      Yo
+ *      · Quién tiene acceso: CUALQUIER USUARIO   ← imprescindible
+ * 4. Autoriza. Si sale "Google no ha verificado esta aplicación",
+ *    entra en "Configuración avanzada" → "Ir a (proyecto)".
+ * 5. Copia la URL que termina en /exec y ponla en CONFIG.endpoint
+ *    dentro de index.html.
  */
 
-/* Orden de las columnas en la hoja. Cambiar aquí cambia la hoja. */
+var HOJA_DATOS   = 'inscripciones';
+var HOJA_ERRORES = 'errores';
+
+/* Orden de las columnas. Cambiar aquí cambia la hoja. */
 var COLUMNAS = [
-  'at',           // fecha y hora ISO en que se inscribió
+  'at',           // fecha y hora ISO de la inscripción
   'code',         // código de participante
   'type',         // estudiante | universidad
   'name',
@@ -76,50 +51,105 @@ var COLUMNAS = [
   'role',         // solo para responsables universitarios
   'team',
   'teamStatus',   // si | solo | busco
-  'lang',         // idioma en el que se inscribió
+  'lang',
   'challenge'
 ];
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.waitLock(20000); // evita que dos inscripciones simultáneas se pisen
+  lock.waitLock(20000);
   try {
-    var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+    var crudo = extraerPayload(e);
+    if (!crudo) throw new Error('Peticion sin datos. Nada que guardar.');
 
-    // Cabeceras, solo la primera vez
-    if (hoja.getLastRow() === 0) {
-      hoja.appendRow(COLUMNAS);
-      hoja.getRange(1, 1, 1, COLUMNAS.length).setFontWeight('bold');
-      hoja.setFrozenRows(1);
-    }
-
-    var datos = JSON.parse(e.postData.contents);
-
-    hoja.appendRow(COLUMNAS.map(function (c) {
+    var datos = JSON.parse(crudo);
+    hojaDatos().appendRow(COLUMNAS.map(function (c) {
       return datos[c] === undefined || datos[c] === null ? '' : String(datos[c]);
     }));
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return json({ ok: true });
 
   } catch (err) {
-    // Deja rastro del fallo en una pestaña aparte en vez de perderlo
-    try {
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var log = ss.getSheetByName('errores') || ss.insertSheet('errores');
-      log.appendRow([new Date(), String(err), e && e.postData ? e.postData.contents : '']);
-    } catch (e2) {}
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
+    registrarError(err, e);
+    return json({ ok: false, error: String(err) });
   } finally {
     lock.releaseLock();
   }
 }
 
-/* Permite abrir la URL en el navegador para comprobar que vive. */
+/**
+ * Los datos pueden llegar de tres formas distintas segun como envie el
+ * navegador. Las probamos todas en vez de asumir una sola, que es
+ * exactamente lo que fallaba en la version anterior.
+ */
+function extraerPayload(e) {
+  if (!e) return null;
+  if (e.parameter && e.parameter.payload) return e.parameter.payload;
+  if (e.postData && e.postData.contents) return e.postData.contents;
+  if (e.parameters && e.parameters.payload && e.parameters.payload.length) {
+    return e.parameters.payload[0];
+  }
+  return null;
+}
+
+/* La pestana de datos, creada con cabeceras la primera vez. */
+function hojaDatos() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var h = ss.getSheetByName(HOJA_DATOS);
+  if (!h) h = ss.insertSheet(HOJA_DATOS, 0);
+  if (h.getLastRow() === 0) {
+    h.appendRow(COLUMNAS);
+    h.getRange(1, 1, 1, COLUMNAS.length).setFontWeight('bold');
+    h.setFrozenRows(1);
+  }
+  return h;
+}
+
+function registrarError(err, e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var h = ss.getSheetByName(HOJA_ERRORES) || ss.insertSheet(HOJA_ERRORES);
+    h.appendRow([
+      new Date(),
+      String(err),
+      e ? JSON.stringify({ parameter: e.parameter, postData: e.postData }) : 'sin evento'
+    ]);
+  } catch (e2) {}
+}
+
+function json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+                       .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* Abrir la URL en el navegador debe mostrar este texto. */
 function doGet() {
-  return ContentService.createTextOutput('Limly Creators Challenge — endpoint activo');
+  return ContentService.createTextOutput('Limly Creators Challenge - endpoint activo');
+}
+
+/**
+ * PRUEBA SIN LA WEB
+ * Elige "probar" en el desplegable de funciones del editor y pulsa Ejecutar.
+ * Debe aparecer una fila de prueba en la pestana "inscripciones".
+ * Sirve para confirmar que el script y la hoja estan bien conectados,
+ * sin depender del navegador ni de la web.
+ */
+function probar() {
+  doPost({ parameter: { payload: JSON.stringify({
+    at: new Date().toISOString(),
+    code: 'TEST-CC26-0001',
+    type: 'estudiante',
+    name: 'Prueba desde el editor',
+    email: 'prueba@limly.io',
+    whatsapp: '+51999999999',
+    uni: 'Universidad de prueba',
+    countryName: 'Peru',
+    city: 'Lima',
+    career: 'Comunicaciones',
+    role: '',
+    team: '',
+    teamStatus: 'solo',
+    lang: 'es',
+    challenge: 'Limly Creators Challenge'
+  }) } });
 }
